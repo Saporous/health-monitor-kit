@@ -22,7 +22,7 @@ void loop(void) {
     //mySerial.print(temperature);
    // mySerial.print(" C / ");
     mySerial.print(farenheit);
-    //mySerial.println(" F");
+    mySerial.println(" F");
   //}
   if(Serial.available()){
     Serial.print(temperature);
