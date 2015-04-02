@@ -781,8 +781,8 @@ void calibrate_sensors() {
 
 
 void setup(){
-  pinMode(blinkPin,OUTPUT);         // pin that will blink to your heartbeat!
-  pinMode(fadePin,OUTPUT);          // pin that will fade to your heartbeat!
+  //pinMode(blinkPin,OUTPUT);         // pin that will blink to your heartbeat!
+  //pinMode(fadePin,OUTPUT);          // pin that will fade to your heartbeat!
   Serial.begin(115200);             // we agree to talk fast!
   mySerial.begin(9600);
   interruptSetup();                 // sets up to read Pulse Sensor signal every 2mS 
@@ -795,15 +795,15 @@ void setup(){
 
 
 void loop(){
-  sendDataToProcessing('S', Signal);     // send Processing the raw Pulse Sensor data
+  /*sendDataToProcessing('S', Signal);     // send Processing the raw Pulse Sensor data
   if (QS == true){                       // Quantified Self flag is true when arduino finds a heartbeat
         fadeRate = 255;                  // Set 'fadeRate' Variable to 255 to fade LED with pulse
         sendDataToProcessing('B',BPM);   // send heart rate with a 'B' prefix
         sendDataToProcessing('Q',IBI);   // send time between beats with a 'Q' prefix
         QS = false;                      // reset the Quantified Self flag for next time    
      }
-  
-  ledFadeToBeat();
+  */
+  //ledFadeToBeat();
 
   double dT;
   accel_t_gyro_union accel_t_gyro;
@@ -817,7 +817,7 @@ void loop(){
   float accel_y = accel_t_gyro.value.y_accel;
   float accel_z = accel_t_gyro.value.z_accel;
 
-  if(counter >= 50){
+  if(counter >= 5){
     mySerial.print(accel_x, 2);
     mySerial.print(F(","));
     mySerial.print(accel_y, 2);

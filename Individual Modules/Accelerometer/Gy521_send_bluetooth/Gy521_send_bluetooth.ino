@@ -33,7 +33,7 @@
 #include <Wire.h>
 #include <SoftwareSerial.h>
 
-SoftwareSerial mySerial(10, 11); // RX, TX
+SoftwareSerial mySerial(11, 10); // RX, TX
 int level;
 
 // The name of the sensor is "MPU-6050".
