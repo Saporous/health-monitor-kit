@@ -1,13 +1,11 @@
 
 /*
->> Pulse Sensor Amped Leonardo 1.2 <<
-
+>> Pulse Sensor Amped 1.2 <<
 This code is for Pulse Sensor Amped by Joel Murphy and Yury Gitman
     www.pulsesensor.com 
     >>> Pulse Sensor purple wire goes to Analog Pin 0 <<<
-Pulse Sensor sample aquisition and processing happens in the background via Timer 1 interrupt. 2mS sample rate.
-analogWrite command [PWM] on pins 9 and 10 will not work when using this code, because we are using Timer 1!
-
+Pulse Sensor sample aquisition and processing happens in the background via Timer 2 interrupt. 2mS sample rate.
+PWM on pins 3 and 11 will not work when using this code, because we are using Timer 2!
 The following variables are automatically updated:
 Signal :    int that holds the analog signal data straight from the sensor. updated every 2mS.
 IBI  :      int that holds the time interval between beats. 2mS resolution.
@@ -24,20 +22,17 @@ It will also fade an LED on pin fadePin with every beat. Put an LED and series r
 Check here for detailed code walkthrough:
 http://pulsesensor.myshopify.com/pages/pulse-sensor-amped-arduino-v1dot1
 
-Code Made by Joel Murphy, updated Summer 2014
+Code Version 1.2 by Joel Murphy & Yury Gitman  Spring 2013
+This update fixes the firstBeat and secondBeat flag usage so that realistic BPM is reported.
 
 */
 #include <SoftwareSerial.h>
 #include <OneWire.h> 
 #include <Wire.h>
 
-int DS18S20_Pin = 2; //DS18S20 Signal pin on digital 2
+int counter = 0;
+SoftwareSerial mySerial(11, 10); // RX, TX
 
-//Temperature chip i/o
-//OneWire ds(DS18S20_Pin);  // on digital pin 2
-
-// Bluetooth on pins D10 and D11
-SoftwareSerial mySerial(10, 11); // RX, TX
 
 #define MPU6050_AUX_VDDIO          0x01   // R/W
 #define MPU6050_SMPLRT_DIV         0x19   // R/W
@@ -737,6 +732,7 @@ volatile int IBI = 600;             // holds the time between beats, must be see
 volatile boolean Pulse = false;     // true when pulse wave is high, false when it's low
 volatile boolean QS = false;        // becomes true when Arduoino finds a beat.
 
+
 // The sensor should be motionless on a horizontal surface 
 //  while calibration is happening
 void calibrate_sensors() {
@@ -783,22 +779,17 @@ void calibrate_sensors() {
   //Serial.println("Finishing Calibration");
 }
 
+
 void setup(){
-  Wire.begin();
-  
   pinMode(blinkPin,OUTPUT);         // pin that will blink to your heartbeat!
   pinMode(fadePin,OUTPUT);          // pin that will fade to your heartbeat!
   Serial.begin(115200);             // we agree to talk fast!
   mySerial.begin(9600);
-  while(!Serial);                   // this is necessary for Leonardo to find the serialport.
-  delay(100);
-  Serial.println("Pulse Sensor Amped - Leonardo");
   interruptSetup();                 // sets up to read Pulse Sensor signal every 2mS 
-  Serial.println("done interrupt setup");
    // UN-COMMENT THE NEXT LINE IF YOU ARE POWERING The Pulse Sensor AT LOW VOLTAGE, 
    // AND APPLY THAT VOLTAGE TO THE A-REF PIN
-//   analogReference(EXTERNAL);   
-   
+   //analogReference(EXTERNAL);   
+   calibrate_sensors();
 }
 
 
@@ -811,61 +802,31 @@ void loop(){
         sendDataToProcessing('Q',IBI);   // send time between beats with a 'Q' prefix
         QS = false;                      // reset the Quantified Self flag for next time    
      }
+  
   ledFadeToBeat();
-   
+
   double dT;
   accel_t_gyro_union accel_t_gyro;
   unsigned long t_now = millis();
     // Convert gyro values to degrees/sec
   float FS_SEL = 131;
-
-  float gyro_x = (accel_t_gyro.value.x_gyro - base_x_gyro)/FS_SEL;
-  float gyro_y = (accel_t_gyro.value.y_gyro - base_y_gyro)/FS_SEL;
-  float gyro_z = (accel_t_gyro.value.z_gyro - base_z_gyro)/FS_SEL;
   
   // Get raw acceleration values
   //float G_CONVERT = 16384;
   float accel_x = accel_t_gyro.value.x_accel;
   float accel_y = accel_t_gyro.value.y_accel;
   float accel_z = accel_t_gyro.value.z_accel;
-  
-  // Get angle values from accelerometer
-  float RADIANS_TO_DEGREES = 180/3.14159;
-  //float accel_vector_length = sqrt(pow(accel_x,2) + pow(accel_y,2) + pow(accel_z,2));
-  float accel_angle_y = atan(-1*accel_x/sqrt(pow(accel_y,2) + pow(accel_z,2)))*RADIANS_TO_DEGREES;
-  float accel_angle_x = atan(accel_y/sqrt(pow(accel_x,2) + pow(accel_z,2)))*RADIANS_TO_DEGREES;
-  
-  float accel_angle_z = atan(sqrt(pow(accel_x,2) + pow(accel_y,2))/accel_z)*RADIANS_TO_DEGREES;;
-  //float accel_angle_z = 0;
-  
-  // Compute the (filtered) gyro angles
-  float dt =(t_now - get_last_time())/1000.0;
-  float gyro_angle_x = gyro_x*dt + get_last_x_angle();
-  float gyro_angle_y = gyro_y*dt + get_last_y_angle();
-  float gyro_angle_z = gyro_z*dt + get_last_z_angle();
-  
-  // Compute the drifting gyro angles
-  float unfiltered_gyro_angle_x = gyro_x*dt + get_last_gyro_x_angle();
-  float unfiltered_gyro_angle_y = gyro_y*dt + get_last_gyro_y_angle();
-  float unfiltered_gyro_angle_z = gyro_z*dt + get_last_gyro_z_angle();
-  
-  // Apply the complementary filter to figure out the change in angle - choice of alpha is
-  // estimated now.  Alpha depends on the sampling rate...
-  float alpha = 0.96;
-  float angle_x = alpha*gyro_angle_x + (1.0 - alpha)*accel_angle_x;
-  float angle_y = alpha*gyro_angle_y + (1.0 - alpha)*accel_angle_y;
-  float angle_z = gyro_angle_z;  //Accelerometer doesn't give z-angle
-  
-  // Update the saved data with the latest values
-  set_last_read_angle_data(t_now, angle_x, angle_y, angle_z, unfiltered_gyro_angle_x, unfiltered_gyro_angle_y, unfiltered_gyro_angle_z);
 
-  mySerial.print(angle_x, 2);
-  mySerial.print(F(","));
-  mySerial.print(angle_y, 2);
-  mySerial.print(F(","));
-  mySerial.print(angle_z, 2);
-  mySerial.println(F(""));
-  
+  if(counter >= 50){
+    mySerial.print(accel_x, 2);
+    mySerial.print(F(","));
+    mySerial.print(accel_y, 2);
+    mySerial.print(F(","));
+    mySerial.print(accel_z, 2);
+    mySerial.println(F(""));
+    counter = 0;
+  }
+  counter++;
   delay(20);                             //  take a break
 }
 
@@ -964,7 +925,6 @@ int MPU6050_write_reg(int reg, uint8_t data)
 
   return (error);
 }
-
 
 void ledFadeToBeat(){
     fadeRate -= 15;                         //  set LED fade value
