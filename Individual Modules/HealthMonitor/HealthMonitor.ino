@@ -33,15 +33,17 @@ This update fixes the firstBeat and secondBeat flag usage so that realistic BPM 
 const int MPU=0x68;  // I2C address of the MPU-6050
 
 //  VARIABLES
-SoftwareSerial mySerial(11, 10); // RX, TX
-int pulsePin = 0;                 // Pulse Sensor purple wire connected to analog pin 0
-int blinkPin = 13;                // pin to blink led at each beat
-int fadePin = 5;                  // pin to do fancy classy fading blink at each beat
-int fadeRate = 0;                 // used to fade LED on with PWM on fadePin
-int count,countX,countY,countZ;   // counters for XYZ axis
-int delayCount;
-int stepUp,stepDown;              // flag to signal whether a step was already detected
+SoftwareSerial mySerial(11, 10);   // RX, TX
+OneWire ds(2);                     // on digital pin 2
+int pulsePin = 0;                  // Pulse Sensor purple wire connected to analog pin 0
+int blinkPin = 13;                 // pin to blink led at each beat
+int fadePin = 5;                   // pin to do fancy classy fading blink at each beat
+int fadeRate = 0;                  // used to fade LED on with PWM on fadePin
+int count,countX,countY,countZ;    // counters for XYZ axis
+int delayCount;                    // 
+int stepUp,stepDown;               // flag to signal whether a step was already detected
 int16_t AcX,AcY,AcZ,Tmp,GyX,GyY,GyZ;
+float temperature,farenheit;
 
 // these variables are volatile because they are used during the interrupt service routine!
 volatile int BPM;                   // used to hold the pulse rate
@@ -76,6 +78,11 @@ void loop(){
         QS = false;                      // reset the Quantified Self flag for next time    
      }
 */
+  float oldTemperature = temperature;
+  temperature = getTemp();
+  if(temperature < 50 || temperature > 100)
+    temperature = oldTemperature;
+  farenheit = (temperature * 9/5) + 32;
   Wire.beginTransmission(MPU);
   Wire.write(0x3B);  // starting with register 0x3B (ACCEL_XOUT_H)
   Wire.endTransmission(false);
@@ -126,13 +133,28 @@ void loop(){
     stepUp = 0;
   }
   
-  if(delayCount > 50){
-    Serial.print("GyX"); Serial.print(GyX);
-    Serial.print(" | Step Count = "); Serial.println(count/2);
-    Serial.print("BPM = "); Serial.println(BPM);
+  if(delayCount > 10){
+    //Serial.print("GyX"); Serial.print(GyX);
+    Serial.print("<<<<<<<<<<"); 
+    Serial.print(":T"); Serial.print(farenheit);
+    Serial.print(":S"); Serial.print(count/2);
+    Serial.print(":H"); Serial.print(BPM);
+    Serial.print(":T"); Serial.print(farenheit);
+    Serial.print(":S"); Serial.print(count/2);
+    Serial.print(":H"); Serial.print(BPM);
+    Serial.print(":T"); Serial.print(farenheit);
+    Serial.print(":S"); Serial.print(count/2);
+    Serial.print(":H"); Serial.print(BPM);
+    Serial.print(":T"); Serial.print(farenheit);
+    Serial.print(":S"); Serial.print(count/2);
+    Serial.print(":H"); Serial.print(BPM);
+    Serial.println(":>>>>>>>>>>");
+    
     mySerial.print("GyX"); mySerial.print(GyX);
     mySerial.print(" | Step Count = "); mySerial.println(count/2);
     mySerial.print("BPM = "); mySerial.println(BPM);
+    mySerial.print(farenheit);
+    mySerial.println(" F");
     delayCount=0;
   }
   delayCount++;
@@ -145,12 +167,57 @@ void ledFadeToBeat(){
     analogWrite(fadePin,fadeRate);          //  fade LED
   }
 
-
 void sendDataToProcessing(char symbol, int data ){
     Serial.print(symbol);                // symbol prefix tells Processing what type of data is coming
     Serial.println(data);                // the data to send culminating in a carriage return
   }
 
+float getTemp(){
+  //returns the temperature from one DS18S20 in DEG Celsius
+
+  byte data[12];
+  byte addr[8];
+
+  if ( !ds.search(addr)) {
+    //no more sensors on chain, reset search
+    ds.reset_search();
+    return -1000;
+  }
+
+  if ( OneWire::crc8( addr, 7) != addr[7]) {
+    Serial.println("CRC is not valid!");
+    return -1000;
+  }
+
+  if ( addr[0] != 0x10 && addr[0] != 0x28) {
+    Serial.print("Device is not recognized");
+    return -1000;
+  }
+
+  ds.reset();
+  ds.select(addr);
+  ds.write(0x44,1); // start conversion, with parasite power on at the end
+
+  byte present = ds.reset();
+  ds.select(addr);    
+  ds.write(0xBE); // Read Scratchpad
+
+
+  for (int i = 0; i < 9; i++) { // we need 9 bytes
+    data[i] = ds.read();
+  }
+
+  ds.reset_search();
+
+  byte MSB = data[1];
+  byte LSB = data[0];
+
+  float tempRead = ((MSB << 8) | LSB); //using two's compliment
+  float TemperatureSum = tempRead / 16;
+
+  return TemperatureSum;
+
+}
 
 
 
