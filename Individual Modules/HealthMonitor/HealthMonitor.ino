@@ -43,7 +43,7 @@ int count,countX,countY,countZ;    // counters for XYZ axis
 int delayCount;                    // 
 int stepUp,stepDown;               // flag to signal whether a step was already detected
 int16_t AcX,AcY,AcZ,Tmp,GyX,GyY,GyZ;
-float temperature,farenheit;
+float tempTemperature=30.00,temperature=30.00,farenheit;
 
 // these variables are volatile because they are used during the interrupt service routine!
 volatile int BPM;                   // used to hold the pulse rate
@@ -78,11 +78,11 @@ void loop(){
         QS = false;                      // reset the Quantified Self flag for next time    
      }
 */
-  float tempTemperature = getTemp();
-  if(tempTemperature > 50 && tempTemperature < 100){
+  tempTemperature = getTemp();
+  if(tempTemperature > 10 && tempTemperature < 50){
     temperature = tempTemperature;
-    farenheit = (temperature * 9/5) + 32;
   }
+  farenheit = (temperature * 9/5) + 32;
   Wire.beginTransmission(MPU);
   Wire.write(0x3B);  // starting with register 0x3B (ACCEL_XOUT_H)
   Wire.endTransmission(false);
@@ -149,7 +149,7 @@ void loop(){
     Serial.print(":S"); Serial.print(count/2);
     Serial.print(":H"); Serial.print(BPM);
     Serial.println(":>>>>>>>>>>");
-    
+
     mySerial.print("<<<<<<<<<<"); 
     mySerial.print(":T"); mySerial.print(farenheit);
     mySerial.print(":S"); mySerial.print(count/2);
