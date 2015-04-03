@@ -78,11 +78,11 @@ void loop(){
         QS = false;                      // reset the Quantified Self flag for next time    
      }
 */
-  float oldTemperature = temperature;
-  temperature = getTemp();
-  if(temperature < 50 || temperature > 100)
-    temperature = oldTemperature;
-  farenheit = (temperature * 9/5) + 32;
+  float tempTemperature = getTemp();
+  if(tempTemperature > 50 && tempTemperature < 100){
+    temperature = tempTemperature;
+    farenheit = (temperature * 9/5) + 32;
+  }
   Wire.beginTransmission(MPU);
   Wire.write(0x3B);  // starting with register 0x3B (ACCEL_XOUT_H)
   Wire.endTransmission(false);
@@ -150,11 +150,21 @@ void loop(){
     Serial.print(":H"); Serial.print(BPM);
     Serial.println(":>>>>>>>>>>");
     
-    mySerial.print("GyX"); mySerial.print(GyX);
-    mySerial.print(" | Step Count = "); mySerial.println(count/2);
-    mySerial.print("BPM = "); mySerial.println(BPM);
-    mySerial.print(farenheit);
-    mySerial.println(" F");
+    mySerial.print("<<<<<<<<<<"); 
+    mySerial.print(":T"); mySerial.print(farenheit);
+    mySerial.print(":S"); mySerial.print(count/2);
+    mySerial.print(":H"); mySerial.print(BPM);
+    mySerial.print(":T"); mySerial.print(farenheit);
+    mySerial.print(":S"); mySerial.print(count/2);
+    mySerial.print(":H"); mySerial.print(BPM);
+    mySerial.print(":T"); mySerial.print(farenheit);
+    mySerial.print(":S"); mySerial.print(count/2);
+    mySerial.print(":H"); mySerial.print(BPM);
+    mySerial.print(":T"); mySerial.print(farenheit);
+    mySerial.print(":S"); mySerial.print(count/2);
+    mySerial.print(":H"); mySerial.print(BPM);
+    mySerial.println(":>>>>>>>>>>");
+    
     delayCount=0;
   }
   delayCount++;
