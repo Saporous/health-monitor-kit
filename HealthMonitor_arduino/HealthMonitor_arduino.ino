@@ -43,11 +43,13 @@ int count,countX,countY,countZ;    // counters for XYZ axis
 int delayCount;                    // 
 int stepUp,stepDown;               // flag to signal whether a step was already detected
 int emergencyCount,emergencyFlag;  // flag to determine pressed emergency button press
+int emergencyButton = 1;           // Set Emergency Button to analog pin 1
 int16_t AcX,AcY,AcZ,Tmp,GyX,GyY,GyZ;
 float tempTemperature=30.00,temperature=30.00,farenheit;
 
 // these variables are volatile because they are used during the interrupt service routine!
 volatile int BPM;                   // used to hold the pulse rate
+int weightedBPM;                     // holds smoothed BPM
 volatile int Signal;                // holds the incoming raw data
 volatile int IBI = 600;             // holds the time between beats, must be seeded! 
 volatile boolean Pulse = false;     // true when pulse wave is high, false when it's low
@@ -59,11 +61,13 @@ void setup(){
   Wire.write(0x6B);  // PWR_MGMT_1 register
   Wire.write(0);     // set to zero (wakes up the MPU-6050)
   Wire.endTransmission(true);
-  //pinMode(blinkPin,OUTPUT);         // pin that will blink to your heartbeat!
-  //pinMode(fadePin,OUTPUT);          // pin that will fade to your heartbeat!
-  Serial.begin(115200);             // we agree to talk fast!
-  mySerial.begin(9600);
-  interruptSetup();                 // sets up to read Pulse Sensor signal every 2mS 
+  
+  //pinMode(blinkPin,OUTPUT);        // pin that will blink to your heartbeat!
+  //pinMode(fadePin,OUTPUT);         // pin that will fade to your heartbeat!
+  pinMode(emergencyButton, INPUT);   
+  Serial.begin(115200);              // we agree to talk fast!
+  mySerial.begin(9600);              // 
+  interruptSetup();                  // sets up to read Pulse Sensor signal every 2mS 
    // UN-COMMENT THE NEXT LINE IF YOU ARE POWERING The Pulse Sensor AT LOW VOLTAGE, 
    // AND APPLY THAT VOLTAGE TO THE A-REF PIN
    //analogReference(EXTERNAL);   
@@ -72,10 +76,11 @@ void setup(){
 
 
 void loop(){
-  if(emergencyButton){
+  if(!analogRead(A1)){
     emergencyCount++;
   }
-  if(emergencyCount > 5){
+  else emergencyCount = 0;
+  if(emergencyCount > 5  ){
     emergencyFlag = 1;
   }
   tempTemperature = getTemp();
@@ -95,33 +100,33 @@ void loop(){
   GyX=Wire.read()<<8|Wire.read();  // 0x43 (GYRO_XOUT_H) & 0x44 (GYRO_XOUT_L)
   GyY=Wire.read()<<8|Wire.read();  // 0x45 (GYRO_YOUT_H) & 0x46 (GYRO_YOUT_L)
   GyZ=Wire.read()<<8|Wire.read();  // 0x47 (GYRO_ZOUT_H) & 0x48 (GYRO_ZOUT_L)
-  if(GyX > 5000 || GyX < -5000 && !stepDown){
+  if(GyX > 6000 || GyX < -6000 && !stepDown){
     countX++;
     stepDown = 1;
     stepUp = 0;
   }
-  if(GyY > 5000 || GyY < -5000 && !stepDown){
+  if(GyY > 6000 || GyY < -6000 && !stepDown){
     countY++;
     stepDown = 1;
     stepUp = 0;
   }
-  if(GyZ > 5000 || GyZ < -5000 && !stepDown){
+  if(GyZ > 6000 || GyZ < -6000 && !stepDown){
     countZ++;
     stepDown = 1;
     stepUp = 0;
   }
   
-  if(GyX < 5000 && GyX > -5000 && countX){
+  if(GyX < 6000 && GyX > -6000 && countX){
     countX = 0;
     stepDown = 0;
     stepUp = 1;
   }
-  if(GyY < 5000 && GyY > -5000 && countY){
+  if(GyY < 6000 && GyY > -6000 && countY){
     countY = 0;
     stepDown = 0;
     stepUp = 1;
   }
-  if(GyZ < 5000 && GyZ > -5000 && countZ){
+  if(GyZ < 6000 && GyZ > -6000 && countZ){
     countZ = 0;
     stepDown = 0;
     stepUp = 1;
@@ -132,39 +137,38 @@ void loop(){
     stepDown = 0;
     stepUp = 0;
   }
-  
+  weightedBPM += BPM;
   if(delayCount > 10){
+    weightedBPM /= 21;
     //Serial.print("GyX"); Serial.print(GyX);
     Serial.print("<<<<<<<<<<"); 
     Serial.print(":T"); Serial.print(farenheit);
     Serial.print(":S"); Serial.print(count/2);
+    Serial.print(":H"); Serial.print(weightedBPM);
     Serial.print(":H"); Serial.print(BPM);
-    Serial.print(":T"); Serial.print(farenheit);
-    Serial.print(":S"); Serial.print(count/2);
-    Serial.print(":H"); Serial.print(BPM);
-    Serial.print(":T"); Serial.print(farenheit);
-    Serial.print(":S"); Serial.print(count/2);
-    Serial.print(":H"); Serial.print(BPM);
-    Serial.print(":T"); Serial.print(farenheit);
-    Serial.print(":S"); Serial.print(count/2);
-    Serial.print(":H"); Serial.print(BPM);
+    Serial.print(":E"); Serial.print(emergencyFlag);
     Serial.println(":>>>>>>>>>>");
+    //Serial.println(emergencyCount);
 
     mySerial.print("<<<<<<<<<<"); 
     mySerial.print(":T"); mySerial.print(farenheit);
     mySerial.print(":S"); mySerial.print(count/2);
-    mySerial.print(":H"); mySerial.print(BPM);
+    mySerial.print(":H"); mySerial.print(weightedBPM);
+    mySerial.print(":E"); mySerial.print(emergencyFlag);  
     mySerial.print(":T"); mySerial.print(farenheit);
     mySerial.print(":S"); mySerial.print(count/2);
-    mySerial.print(":H"); mySerial.print(BPM);
+    mySerial.print(":H"); mySerial.print(weightedBPM);
+    mySerial.print(":E"); mySerial.print(emergencyFlag);  
     mySerial.print(":T"); mySerial.print(farenheit);
     mySerial.print(":S"); mySerial.print(count/2);
-    mySerial.print(":H"); mySerial.print(BPM);
+    mySerial.print(":H"); mySerial.print(weightedBPM);
+    mySerial.print(":E"); mySerial.print(emergencyFlag);  
     mySerial.print(":T"); mySerial.print(farenheit);
     mySerial.print(":S"); mySerial.print(count/2);
-    mySerial.print(":H"); mySerial.print(BPM);
+    mySerial.print(":H"); mySerial.print(weightedBPM);
+    mySerial.print(":E"); mySerial.print(emergencyFlag);  
     mySerial.println(":>>>>>>>>>>");
-    
+    weightedBPM = 600;
     delayCount=0;
   }
   delayCount++;
