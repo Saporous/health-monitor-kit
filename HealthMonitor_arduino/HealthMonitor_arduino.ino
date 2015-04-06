@@ -42,6 +42,7 @@ int fadeRate = 0;                  // used to fade LED on with PWM on fadePin
 int count,countX,countY,countZ;    // counters for XYZ axis
 int delayCount;                    // 
 int stepUp,stepDown;               // flag to signal whether a step was already detected
+int emergencyCount,emergencyFlag;  // flag to determine pressed emergency button press
 int16_t AcX,AcY,AcZ,Tmp,GyX,GyY,GyZ;
 float tempTemperature=30.00,temperature=30.00,farenheit;
 
@@ -71,13 +72,12 @@ void setup(){
 
 
 void loop(){
-  /*sendDataToProcessing('S', Signal);     // send Processing the raw Pulse Sensor data
-  if (QS == true){                       // Quantified Self flag is true when arduino finds a heartbeat
-        sendDataToProcessing('B',BPM);   // send heart rate with a 'B' prefix
-        sendDataToProcessing('Q',IBI);   // send time between beats with a 'Q' prefix
-        QS = false;                      // reset the Quantified Self flag for next time    
-     }
-*/
+  if(emergencyButton){
+    emergencyCount++;
+  }
+  if(emergencyCount > 5){
+    emergencyFlag = 1;
+  }
   tempTemperature = getTemp();
   if(tempTemperature > 10 && tempTemperature < 50){
     temperature = tempTemperature;
